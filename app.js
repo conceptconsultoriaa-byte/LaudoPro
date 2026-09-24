@@ -30,6 +30,8 @@ function monthLabel(monthStr){
 }
 function currentMonthStr(){ const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; }
 function empresaNome(id){ return (EMPRESAS.find(e=>e.id===id)||{}).nome || "—"; }
+const TIPO_LABEL = { eletivo: "Eletivo", urgencia: "Urgência", internados: "Internados" };
+const MODALIDADE_LABEL = { tomografia: "Tomografia", raio_x: "Raio-X", ressonancia: "Ressonância Magnética", mamografia: "Mamografia" };
 
 /* ---------------- AUTH / BOOTSTRAP ---------------- */
 async function boot(){
@@ -155,7 +157,7 @@ document.querySelectorAll(".tab-btn[data-tab]").forEach(btn=>{
 /* ---------------- THEME / BRAND ---------------- */
 function applyBrand(){
   document.documentElement.setAttribute("data-theme", "dark");
-  const cor = BUSINESS.brand_color || "#C6E619";
+  const cor = BUSINESS.brand_color || "#2E86FF";
   document.documentElement.style.setProperty("--lime", cor);
   document.documentElement.style.setProperty("--lime-ink", contrastInk(cor));
   document.getElementById("brandName").textContent = "LaudoPro";
@@ -171,7 +173,7 @@ function contrastInk(hex){
 const cfgForm = document.getElementById("configForm");
 function fillConfigForm(){
   document.getElementById("cfgNome").value = BUSINESS.name;
-  document.getElementById("cfgCor").value = BUSINESS.brand_color || "#C6E619";
+  document.getElementById("cfgCor").value = BUSINESS.brand_color || "#2E86FF";
   renderSubStatus();
 }
 function renderSubStatus(){
@@ -221,19 +223,20 @@ document.getElementById("empresaForm").addEventListener("submit", async e=>{
   await loadAll(); refreshAll();
 });
 
-async function salvarValor(empresaId, tipo, valor){
-  if(!tipo || isNaN(valor)) return;
+async function salvarValor(empresaId, modalidade, tipo, valor){
+  if(!modalidade || !tipo || isNaN(valor)) return;
   const { error } = await supabaseClient.from("lp_valores").upsert(
-    { business_id: BUSINESS.id, empresa_id: empresaId, tipo, valor_unitario: valor },
-    { onConflict: "empresa_id,tipo" }
+    { business_id: BUSINESS.id, empresa_id: empresaId, modalidade, tipo, valor_unitario: valor },
+    { onConflict: "empresa_id,modalidade,tipo" }
   );
   if(error){ alert("Erro ao salvar valor: " + error.message); return; }
   await loadAll(); refreshAll();
 }
 window.salvarValorInline = (empresaId) => {
-  const tipo = document.getElementById(`valTipo-${empresaId}`).value.trim();
+  const modalidade = document.getElementById(`valModalidade-${empresaId}`).value;
+  const tipo = document.getElementById(`valTipo-${empresaId}`).value;
   const valor = parseFloat(document.getElementById(`valValor-${empresaId}`).value.replace(",","."));
-  salvarValor(empresaId, tipo, valor);
+  salvarValor(empresaId, modalidade, tipo, valor);
 };
 window.excluirEmpresa = async (id) => {
   if(!confirm("Excluir esta empresa? Os laudos e recebimentos ligados a ela também podem ser afetados.")) return;
@@ -258,12 +261,22 @@ function renderEmpresasList(){
         <button class="btn-danger" onclick="excluirEmpresa('${emp.id}')">Excluir</button>
       </div>
       <div style="margin-top:10px;">
-        <span class="hint">Valores por tipo de laudo:</span>
+        <span class="hint">Valores por exame × estado do paciente:</span>
         <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:6px;">
-          ${valoresEmp.map(v=>`<span class="status-badge status-pago">${v.tipo}: ${brl(v.valor_unitario)}</span>`).join("") || "<span class='hint'>nenhum valor cadastrado ainda</span>"}
+          ${valoresEmp.map(v=>`<span class="status-badge status-pago">${MODALIDADE_LABEL[v.modalidade]||v.modalidade} · ${TIPO_LABEL[v.tipo]||v.tipo}: ${brl(v.valor_unitario)}</span>`).join("") || "<span class='hint'>nenhum valor cadastrado ainda</span>"}
         </div>
         <div class="form-inline" style="margin-top:10px;">
-          <input type="text" id="valTipo-${emp.id}" placeholder="Tipo (ex: Eletivo)" style="min-height:38px; padding:8px; border:1px solid var(--line); border-radius:8px;">
+          <select id="valModalidade-${emp.id}" style="min-height:38px; padding:8px; border:1px solid var(--line); border-radius:8px;">
+            <option value="tomografia">Tomografia</option>
+            <option value="raio_x">Raio-X</option>
+            <option value="ressonancia">Ressonância Magnética</option>
+            <option value="mamografia">Mamografia</option>
+          </select>
+          <select id="valTipo-${emp.id}" style="min-height:38px; padding:8px; border:1px solid var(--line); border-radius:8px;">
+            <option value="eletivo">Eletivo</option>
+            <option value="urgencia">Urgência</option>
+            <option value="internados">Internados</option>
+          </select>
           <input type="number" id="valValor-${emp.id}" placeholder="Valor R$" step="0.01" style="min-height:38px; padding:8px; border:1px solid var(--line); border-radius:8px; width:120px;">
           <button class="btn-secondary" onclick="salvarValorInline('${emp.id}')">Salvar valor</button>
         </div>
@@ -276,18 +289,19 @@ function renderEmpresasList(){
 document.getElementById("laudoForm").addEventListener("submit", async e=>{
   e.preventDefault();
   const empresaId = document.getElementById("lauEmpresa").value;
-  const tipo = document.getElementById("lauTipo").value.trim();
+  const modalidade = document.getElementById("lauModalidade").value;
+  const tipo = document.getElementById("lauTipo").value;
   const qtd = Number(document.getElementById("lauQtd").value);
   if(!empresaId){ alert("Cadastre uma empresa primeiro."); return; }
-  const valorCadastrado = VALORES.find(v=>v.empresa_id===empresaId && v.tipo.toLowerCase()===tipo.toLowerCase());
+  const valorCadastrado = VALORES.find(v=>v.empresa_id===empresaId && v.modalidade===modalidade && v.tipo===tipo);
   const valorUnit = valorCadastrado ? Number(valorCadastrado.valor_unitario) : 0;
   if(!valorCadastrado){
-    if(!confirm(`Não há valor cadastrado para "${tipo}" nessa empresa. Lançar mesmo assim com valor R$ 0,00? (você pode cadastrar o valor na aba Empresas e editar depois)`)) return;
+    if(!confirm(`Não há valor cadastrado para ${MODALIDADE_LABEL[modalidade]} (${TIPO_LABEL[tipo]}) nessa empresa. Lançar mesmo assim com valor R$ 0,00? (você pode cadastrar o valor na aba Empresas)`)) return;
   }
   const { error } = await supabaseClient.from("lp_laudos").insert({
     business_id: BUSINESS.id, empresa_id: empresaId,
     data: document.getElementById("lauData").value,
-    tipo, quantidade: qtd, valor_unitario: valorUnit, valor_total: valorUnit * qtd,
+    modalidade, tipo, quantidade: qtd, valor_unitario: valorUnit, valor_total: valorUnit * qtd,
   });
   if(error){ alert("Erro: " + error.message); return; }
   e.target.reset();
@@ -309,7 +323,7 @@ function renderLaudosList(){
   lista.forEach(l=>{
     const div = document.createElement("div");
     div.className = "list-item";
-    div.innerHTML = `<span>${formatDateBR(l.data)} · <strong>${empresaNome(l.empresa_id)}</strong> · ${l.tipo} · ${l.quantidade}x · ${brl(l.valor_total)}</span>
+    div.innerHTML = `<span>${formatDateBR(l.data)} · <strong>${empresaNome(l.empresa_id)}</strong> · ${MODALIDADE_LABEL[l.modalidade]||l.modalidade} · ${TIPO_LABEL[l.tipo]||l.tipo} · ${l.quantidade}x · ${brl(l.valor_total)}</span>
       <button class="btn-danger" onclick="excluirLaudo('${l.id}')">Excluir</button>`;
     el.appendChild(div);
   });
@@ -360,13 +374,13 @@ document.getElementById("btnGerarRelatorio").addEventListener("click", (e)=>{
   if(!empresaId || !mes){ alert("Escolha empresa e mês."); return; }
   const { start, end } = monthRange(mes);
   const lista = LAUDOS.filter(l=>l.empresa_id===empresaId && l.data>=start && l.data<=end);
-  const porTipo = {};
-  lista.forEach(l=>{ porTipo[l.tipo] = porTipo[l.tipo] || { qtd: 0, valor: 0 }; porTipo[l.tipo].qtd += l.quantidade; porTipo[l.tipo].valor += Number(l.valor_total); });
-  const total = Object.values(porTipo).reduce((s,t)=>s+t.valor,0);
+  const combos = {};
+  lista.forEach(l=>{ const key = `${l.modalidade}|${l.tipo}`; combos[key] = combos[key] || { modalidade: l.modalidade, tipo: l.tipo, qtd: 0, valor: 0 }; combos[key].qtd += l.quantidade; combos[key].valor += Number(l.valor_total); });
+  const total = Object.values(combos).reduce((s,t)=>s+t.valor,0);
   const emp = EMPRESAS.find(e=>e.id===empresaId);
 
   let texto = `*Relatório de Laudos*\n${emp.nome} — ${monthLabel(mes)}\n\n`;
-  Object.entries(porTipo).forEach(([tipo, v])=>{ texto += `${tipo}: ${v.qtd} laudo(s) — ${brl(v.valor)}\n`; });
+  Object.values(combos).forEach(c=>{ texto += `${MODALIDADE_LABEL[c.modalidade]||c.modalidade} (${TIPO_LABEL[c.tipo]||c.tipo}): ${c.qtd} laudo(s) — ${brl(c.valor)}\n`; });
   texto += `\n*Total do período: ${brl(total)}*`;
   if(lista.length === 0) texto = `*Relatório de Laudos*\n${emp.nome} — ${monthLabel(mes)}\n\nNenhum laudo lançado neste período.`;
 
@@ -393,7 +407,7 @@ function renderDashboard(){
   recentes.forEach(l=>{
     const div = document.createElement("div");
     div.className = "appointment-item";
-    div.innerHTML = `<span>${formatDateBR(l.data)} · <strong>${empresaNome(l.empresa_id)}</strong> · ${l.tipo} · ${l.quantidade}x · ${brl(l.valor_total)}</span>`;
+    div.innerHTML = `<span>${formatDateBR(l.data)} · <strong>${empresaNome(l.empresa_id)}</strong> · ${MODALIDADE_LABEL[l.modalidade]||l.modalidade} · ${TIPO_LABEL[l.tipo]||l.tipo} · ${l.quantidade}x · ${brl(l.valor_total)}</span>`;
     el.appendChild(div);
   });
 }
