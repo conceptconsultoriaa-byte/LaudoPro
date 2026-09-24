@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LaudoPro — Painel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <span id="brandName" class="brand-name">LaudoPro</span>
+    </div>
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="dashboard">Painel</button>
+      <button class="tab-btn" data-tab="empresas">Empresas</button>
+      <button class="tab-btn" data-tab="laudos">Laudos</button>
+      <button class="tab-btn" data-tab="recebimentos">Recebimentos</button>
+      <button class="tab-btn" data-tab="relatorio">Relatório</button>
+      <button class="tab-btn" data-tab="config">Configurações</button>
+      <button class="tab-btn" id="logoutBtn">Sair</button>
+    </nav>
+  </header>
+
+  <main class="content">
+
+    <section id="tab-dashboard" class="tab-panel active">
+      <div id="sponsorBanner"></div>
+      <h1>Visão geral do mês</h1>
+      <div class="cards">
+        <div class="card"><span class="card-label">Esperado no mês</span><span class="card-value" id="statEsperado">R$ 0,00</span></div>
+        <div class="card"><span class="card-label">Recebido no mês</span><span class="card-value" id="statRecebido">R$ 0,00</span></div>
+        <div class="card"><span class="card-label">Diferença</span><span class="card-value" id="statDiferenca">R$ 0,00</span></div>
+        <div class="card"><span class="card-label">Laudos no mês</span><span class="card-value" id="statQtdLaudos">0</span></div>
+      </div>
+      <h2>Últimos laudos lançados</h2>
+      <div id="ultimosLaudos" class="appointment-list"></div>
+    </section>
+
+    <section id="tab-empresas" class="tab-panel">
+      <h1>Empresas Contratantes</h1>
+      <form id="empresaForm" class="form-grid">
+        <label>Nome da empresa <input type="text" id="empNome" required></label>
+        <label>WhatsApp <input type="tel" id="empTelefone" placeholder="55 11 99999-9999"></label>
+        <label>Observações <input type="text" id="empObs"></label>
+        <button type="submit" class="btn-primary">Cadastrar empresa</button>
+      </form>
+      <div id="empresasList" class="list"></div>
+    </section>
+
+    <section id="tab-laudos" class="tab-panel">
+      <h1>Lançar Laudo</h1>
+      <form id="laudoForm" class="form-grid">
+        <label>Empresa <select id="lauEmpresa" required></select></label>
+        <label>Data <input type="date" id="lauData" required></label>
+        <label>Tipo <input type="text" id="lauTipo" required placeholder="Ex: Eletivo, Urgência..." list="tiposSugeridos"></label>
+        <datalist id="tiposSugeridos"><option value="Eletivo"><option value="Urgência"><option value="Internados"></datalist>
+        <label>Quantidade <input type="number" id="lauQtd" min="1" required></label>
+        <button type="submit" class="btn-primary">Lançar</button>
+      </form>
+      <p class="hint">O valor unitário é usado automaticamente do que você cadastrou para essa empresa + tipo (aba Empresas). Se ainda não tiver um valor cadastrado para esse tipo, cadastre lá primeiro.</p>
+      <div class="form-inline">
+        <select id="filtroEmpresaLaudos"><option value="">Todas as empresas</option></select>
+        <input type="month" id="filtroMesLaudos">
+        <button class="btn-secondary" id="btnFiltrarLaudos">Filtrar</button>
+      </div>
+      <div id="laudosList" class="list"></div>
+    </section>
+
+    <section id="tab-recebimentos" class="tab-panel">
+      <h1>Recebimentos</h1>
+      <p class="hint">Registre aqui o valor que você realmente recebeu de cada empresa, por mês, para comparar com o esperado (calculado a partir dos laudos lançados).</p>
+      <form id="recebimentoForm" class="form-grid">
+        <label>Empresa <select id="recEmpresa" required></select></label>
+        <label>Competência <input type="month" id="recCompetencia" required></label>
+        <label>Valor recebido <input type="number" id="recValor" min="0" step="0.01" required></label>
+        <label>Data do recebimento <input type="date" id="recData"></label>
+        <button type="submit" class="btn-primary">Registrar</button>
+      </form>
+      <div id="recebimentosList" class="list"></div>
+    </section>
+
+    <section id="tab-relatorio" class="tab-panel">
+      <h1>Relatório por Empresa</h1>
+      <p class="hint">Gere um resumo dos laudos feitos para uma empresa num período — útil como comprovante, pra enviar por WhatsApp.</p>
+      <div class="form-inline">
+        <select id="relEmpresa"></select>
+        <input type="month" id="relMes">
+        <button class="btn-primary" id="btnGerarRelatorio">Gerar relatório</button>
+      </div>
+      <div id="relatorioBox"></div>
+    </section>
+
+    <section id="tab-config" class="tab-panel">
+      <h1>Configurações</h1>
+      <form id="configForm" class="form-grid">
+        <label>Seu nome <input type="text" id="cfgNome" required></label>
+        <label>Cor de destaque do app <input type="color" id="cfgCor" value="#C6E619" style="height:44px;padding:4px;"></label>
+        <button type="submit" class="btn-primary">Salvar</button>
+      </form>
+
+      <h2>Assinatura do LaudoPro</h2>
+      <div class="list-item">
+        <span>Status atual: <span class="status-badge" id="subStatusBadge">—</span></span>
+      </div>
+      <div class="cards" style="margin-top:12px;">
+        <div class="card">
+          <span class="card-label">Básico — R$ 39/mês</span>
+          <span class="hint">Até 2 empresas contratantes.</span>
+          <button class="btn-primary" id="btnAssinarBasico" style="margin-top:10px;">Assinar Básico</button>
+        </div>
+        <div class="card">
+          <span class="card-label">Pro — R$ 69/mês</span>
+          <span class="hint">Empresas ilimitadas, relatórios detalhados.</span>
+          <button class="btn-primary" id="btnAssinarPro" style="margin-top:10px;">Assinar Pro</button>
+        </div>
+      </div>
+      <p class="hint">Depois de pagar, pode levar alguns segundos para o status atualizar aqui.</p>
+    </section>
+
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="lib/supabaseClient.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
