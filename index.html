@@ -32,6 +32,7 @@
 
     <section id="tab-dashboard" class="tab-panel active">
       <div id="sponsorBanner"></div>
+      <div id="alertaAtrasos"></div>
       <h1>Visão geral do mês</h1>
       <div class="cards">
         <div class="card"><span class="card-label">Esperado no mês</span><span class="card-value" id="statEsperado">R$ 0,00</span></div>
@@ -39,6 +40,14 @@
         <div class="card"><span class="card-label">Diferença</span><span class="card-value" id="statDiferenca">R$ 0,00</span></div>
         <div class="card"><span class="card-label">Laudos no mês</span><span class="card-value" id="statQtdLaudos">0</span></div>
       </div>
+
+      <h2>Evolução mensal — esperado x recebido</h2>
+      <div id="graficoEvolucao"></div>
+
+      <h2>Ranking de empresas — quem paga melhor</h2>
+      <p class="hint" style="margin-top:0;">Comparação entre as empresas cadastradas para o mesmo tipo de exame e estado do paciente.</p>
+      <div id="rankingEmpresas"></div>
+
       <h2>Últimos laudos lançados</h2>
       <div id="ultimosLaudos" class="appointment-list"></div>
     </section>
@@ -108,6 +117,7 @@
         <button class="btn-primary" id="btnGerarRelatorio">Gerar relatório</button>
       </div>
       <div id="relatorioBox"></div>
+      <div id="printArea"></div>
     </section>
 
     <section id="tab-config" class="tab-panel">
@@ -124,14 +134,9 @@
       </div>
       <div class="cards" style="margin-top:12px;">
         <div class="card">
-          <span class="card-label">Básico — R$ 39/mês</span>
-          <span class="hint">Até 2 empresas contratantes.</span>
-          <button class="btn-primary" id="btnAssinarBasico" style="margin-top:10px;">Assinar Básico</button>
-        </div>
-        <div class="card">
-          <span class="card-label">Pro — R$ 69/mês</span>
-          <span class="hint">Empresas ilimitadas, relatórios detalhados.</span>
-          <button class="btn-primary" id="btnAssinarPro" style="margin-top:10px;">Assinar Pro</button>
+          <span class="card-label">LaudoPro Completo — R$ 97/mês</span>
+          <span class="hint">Empresas ilimitadas, gráfico de evolução, ranking de empresas, exportação em PDF e alerta de atraso.</span>
+          <button class="btn-primary" id="btnAssinarPro" style="margin-top:10px;">Assinar agora</button>
         </div>
       </div>
       <p class="hint">Depois de pagar, pode levar alguns segundos para o status atualizar aqui.</p>

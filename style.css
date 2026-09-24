@@ -190,6 +190,24 @@ h2{font-family:'Anton', Arial, sans-serif; font-size:1.05rem; text-transform:upp
 .sponsor-banner img{height:28px; width:auto; border-radius:4px;}
 .sponsor-banner .label{font-size:0.68rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); font-weight:700;}
 
+.alert-atraso{background:rgba(217,58,58,0.10); border:1px solid #D93A3A; color:var(--ink); border-radius:12px; padding:14px 16px; margin-bottom:20px;}
+.alert-atraso strong{color:#D93A3A;}
+
+.ranking-combo{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:10px;}
+.ranking-combo .rk-title{font-weight:800; text-transform:uppercase; font-size:0.78rem; letter-spacing:0.03em; color:var(--muted);}
+.ranking-combo .rk-row{display:flex; justify-content:space-between; padding:6px 0; border-top:1px solid var(--line); font-size:0.92rem;}
+.ranking-combo .rk-row:first-of-type{border-top:none; margin-top:8px;}
+.ranking-combo .rk-row.rk-best{font-weight:800; color:var(--lime-ink); background:var(--lime); margin:8px -16px 0; padding:8px 16px; border-radius:8px; border-top:none;}
+
+#printArea{display:none;}
+.print-report{padding:40px; font-family:Arial,sans-serif; color:#000; white-space:pre-wrap; font-size:14px; line-height:1.5;}
+.print-report h1{font-size:20px; margin-bottom:4px;}
+.print-report h2{font-size:16px; font-weight:600; margin-top:0; color:#333;}
+@media print{
+  body.printing #app{display:none;}
+  body.printing #printArea{display:block;}
+}
+
 /* ---------- LOGIN / SIGNUP ---------- */
 .auth-body{
   min-height:100vh; display:flex; align-items:center; justify-content:center;

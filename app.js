@@ -4,8 +4,6 @@
    =========================================================== */
 
 const BACKEND_URL = "https://agendapro-backend-1n92.onrender.com";
-const PLAN_LIMITS = { basico: { empresas: 2 }, pro: { empresas: 999 } };
-function planoAtual(){ return PLAN_LIMITS[BUSINESS.subscription_plan] || PLAN_LIMITS.pro; }
 
 let CURRENT_USER = null;
 let BUSINESS = null;
@@ -90,18 +88,12 @@ function renderSubscriptionGate(){
     <p class="hint">${msg}</p>
     <div class="cards">
       <div class="card">
-        <span class="card-label">Básico — R$ 39/mês</span>
-        <span class="hint">Até 2 empresas contratantes.</span>
-        <button class="btn-primary" id="gateBasico" style="margin-top:10px;">Assinar Básico</button>
-      </div>
-      <div class="card">
-        <span class="card-label">Pro — R$ 69/mês</span>
-        <span class="hint">Empresas ilimitadas, relatórios detalhados.</span>
-        <button class="btn-primary" id="gatePro" style="margin-top:10px;">Assinar Pro</button>
+        <span class="card-label">LaudoPro Completo — R$ 97/mês</span>
+        <span class="hint">Empresas ilimitadas, gráfico de evolução, ranking de empresas, exportação em PDF e alerta de atraso.</span>
+        <button class="btn-primary" id="gatePro" style="margin-top:10px;">Assinar agora</button>
       </div>
     </div>
   `;
-  document.getElementById("gateBasico").addEventListener("click", ()=> iniciarAssinatura("basico"));
   document.getElementById("gatePro").addEventListener("click", ()=> iniciarAssinatura("pro"));
 }
 
@@ -187,7 +179,6 @@ function renderSubStatus(){
   badge.textContent = texto;
   badge.className = "status-badge " + (statusClassMap[BUSINESS.subscription_status] || "status-pendente");
 }
-document.getElementById("btnAssinarBasico").addEventListener("click", ()=> iniciarAssinatura("basico"));
 document.getElementById("btnAssinarPro").addEventListener("click", ()=> iniciarAssinatura("pro"));
 
 cfgForm.addEventListener("submit", async e=>{
@@ -206,11 +197,6 @@ cfgForm.addEventListener("submit", async e=>{
 /* ---------------- EMPRESAS + VALORES ---------------- */
 document.getElementById("empresaForm").addEventListener("submit", async e=>{
   e.preventDefault();
-  const limite = planoAtual().empresas;
-  if(EMPRESAS.length >= limite){
-    alert(`Seu plano atual permite até ${limite} empresas. Faça upgrade em Configurações → Assinatura.`);
-    return;
-  }
   const nome = document.getElementById("empNome").value.trim();
   if(!nome){ return; }
   const { error } = await supabaseClient.from("lp_empresas").insert({
@@ -247,8 +233,7 @@ window.excluirEmpresa = async (id) => {
 
 function renderEmpresasList(){
   const el = document.getElementById("empresasList");
-  const limite = planoAtual().empresas;
-  el.innerHTML = `<p class="hint">${EMPRESAS.length} de ${limite === 999 ? "∞" : limite} empresas usadas no seu plano.</p>`;
+  el.innerHTML = "";
   if(EMPRESAS.length === 0){ el.insertAdjacentHTML("beforeend", "<p class='hint'>Nenhuma empresa cadastrada ainda.</p>"); return; }
   EMPRESAS.forEach(emp=>{
     const valoresEmp = VALORES.filter(v=>v.empresa_id===emp.id);
@@ -384,9 +369,126 @@ document.getElementById("btnGerarRelatorio").addEventListener("click", (e)=>{
   texto += `\n*Total do período: ${brl(total)}*`;
   if(lista.length === 0) texto = `*Relatório de Laudos*\n${emp.nome} — ${monthLabel(mes)}\n\nNenhum laudo lançado neste período.`;
 
-  document.getElementById("relatorioBox").innerHTML = `<div class="report-totals" style="white-space:pre-wrap;">${texto}</div>` +
-    (emp.telefone ? `<a class="btn-whats" style="display:inline-block; margin-top:10px;" target="_blank" href="https://wa.me/${emp.telefone.replace(/\D/g,"")}?text=${encodeURIComponent(texto)}">Enviar no WhatsApp</a>` : `<p class="hint">Cadastre o WhatsApp dessa empresa para enviar direto.</p>`);
+  document.getElementById("relatorioBox").innerHTML = `<div class="report-totals" style="white-space:pre-wrap;">${texto}</div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+      ${emp.telefone ? `<a class="btn-whats" style="display:inline-block;" target="_blank" href="https://wa.me/${emp.telefone.replace(/\D/g,"")}?text=${encodeURIComponent(texto)}">Enviar no WhatsApp</a>` : `<p class="hint" style="margin:0;">Cadastre o WhatsApp dessa empresa para enviar direto.</p>`}
+      <button class="btn-secondary" id="btnBaixarPDF">Baixar PDF</button>
+    </div>`;
+
+  document.getElementById("btnBaixarPDF").addEventListener("click", ()=>{
+    baixarRelatorioPDF(texto, emp.nome, monthLabel(mes));
+  });
 });
+
+function baixarRelatorioPDF(texto, nomeEmpresa, mesLabel){
+  const area = document.getElementById("printArea");
+  area.innerHTML = `<div class="print-report">
+    <h1>LaudoPro — Relatório de Laudos</h1>
+    <h2>${nomeEmpresa} — ${mesLabel}</h2>
+    <div>${texto.replace(/\*/g,"")}</div>
+  </div>`;
+  document.body.classList.add("printing");
+  window.print();
+  document.body.classList.remove("printing");
+}
+window.addEventListener("afterprint", ()=> document.body.classList.remove("printing"));
+
+/* ---------------- GRÁFICO DE EVOLUÇÃO MENSAL ---------------- */
+function renderGraficoEvolucao(){
+  const el = document.getElementById("graficoEvolucao");
+  const now = new Date();
+  const meses = [];
+  for(let i=5;i>=0;i--){
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    meses.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`);
+  }
+  const dados = meses.map(mes=>{
+    const { start, end } = monthRange(mes);
+    const esperado = LAUDOS.filter(l=>l.data>=start && l.data<=end).reduce((s,l)=>s+Number(l.valor_total),0);
+    const recebido = RECEBIMENTOS.filter(r=>r.competencia.slice(0,7)===mes).reduce((s,r)=>s+Number(r.valor_recebido),0);
+    return { mes, esperado, recebido };
+  });
+  const semDados = dados.every(d=>d.esperado===0 && d.recebido===0);
+  if(semDados){ el.innerHTML = "<p class='hint'>Lance laudos e registre recebimentos para ver a evolução mês a mês.</p>"; return; }
+
+  const max = Math.max(1, ...dados.map(d=>Math.max(d.esperado, d.recebido)));
+  const w = 720, h = 240, padBottom = 34, padTop = 14;
+  const groupW = w / dados.length, barW = 24, gap = 6;
+  let bars = "";
+  dados.forEach((d,i)=>{
+    const cx = i*groupW + groupW/2;
+    const areaH = h - padTop - padBottom;
+    const hEsp = (d.esperado/max) * areaH;
+    const hRec = (d.recebido/max) * areaH;
+    bars += `
+      <rect x="${cx-gap/2-barW}" y="${h-padBottom-hEsp}" width="${barW}" height="${hEsp}" fill="#8FB8F2" rx="3"></rect>
+      <rect x="${cx+gap/2}" y="${h-padBottom-hRec}" width="${barW}" height="${hRec}" fill="var(--lime)" rx="3"></rect>
+      <text x="${cx}" y="${h-14}" text-anchor="middle" font-size="13" fill="currentColor">${monthLabel(d.mes).slice(0,3)}</text>
+    `;
+  });
+  el.innerHTML = `
+    <div style="display:flex; gap:16px; align-items:center; margin-bottom:10px; font-size:0.82rem; color:var(--muted);">
+      <span><span style="display:inline-block;width:12px;height:12px;background:#8FB8F2;border-radius:3px;margin-right:6px;"></span>Esperado</span>
+      <span><span style="display:inline-block;width:12px;height:12px;background:var(--lime);border-radius:3px;margin-right:6px;"></span>Recebido</span>
+    </div>
+    <svg viewBox="0 0 ${w} ${h}" style="width:100%; max-width:720px; height:auto; color:var(--muted);">${bars}</svg>
+  `;
+}
+
+/* ---------------- RANKING DE EMPRESAS ---------------- */
+function renderRankingEmpresas(){
+  const el = document.getElementById("rankingEmpresas");
+  const combos = {};
+  VALORES.forEach(v=>{
+    const key = `${v.modalidade}|${v.tipo}`;
+    combos[key] = combos[key] || [];
+    combos[key].push({ empresaId: v.empresa_id, valor: Number(v.valor_unitario) });
+  });
+  const keys = Object.keys(combos).filter(k=>combos[k].length >= 2);
+  if(keys.length === 0){
+    el.innerHTML = "<p class='hint'>Cadastre o valor de pelo menos 2 empresas para o mesmo exame + estado do paciente pra ver quem paga melhor.</p>";
+    return;
+  }
+  el.innerHTML = keys.map(key=>{
+    const [modalidade, tipo] = key.split("|");
+    const sorted = combos[key].slice().sort((a,b)=>b.valor-a.valor);
+    return `<div class="ranking-combo">
+      <div class="rk-title">${MODALIDADE_LABEL[modalidade]||modalidade} · ${TIPO_LABEL[tipo]||tipo}</div>
+      ${sorted.map((s,i)=>`<div class="rk-row ${i===0 ? "rk-best" : ""}"><span>${i+1}º ${empresaNome(s.empresaId)}${i===0 ? " — paga melhor" : ""}</span><span>${brl(s.valor)}</span></div>`).join("")}
+    </div>`;
+  }).join("");
+}
+
+/* ---------------- ALERTA DE RECEBIMENTO EM ATRASO ---------------- */
+function calcularAtrasos(){
+  const mesAtual = currentMonthStr();
+  const mesesPassados = [...new Set(LAUDOS.map(l=>l.data.slice(0,7)))].filter(m=>m<mesAtual);
+  const alertas = [];
+  mesesPassados.forEach(mes=>{
+    const { start, end } = monthRange(mes);
+    const empresasDoMes = [...new Set(LAUDOS.filter(l=>l.data>=start && l.data<=end).map(l=>l.empresa_id))];
+    empresasDoMes.forEach(empId=>{
+      const esperado = LAUDOS.filter(l=>l.empresa_id===empId && l.data>=start && l.data<=end).reduce((s,l)=>s+Number(l.valor_total),0);
+      const rec = RECEBIMENTOS.find(r=>r.empresa_id===empId && r.competencia.slice(0,7)===mes);
+      const recebido = rec ? Number(rec.valor_recebido) : 0;
+      if(esperado > 0 && recebido < esperado - 0.009){
+        alertas.push({ empresaId: empId, mes, falta: esperado - recebido });
+      }
+    });
+  });
+  return alertas.sort((a,b)=> a.mes < b.mes ? -1 : 1);
+}
+function renderAlertaAtrasos(){
+  const el = document.getElementById("alertaAtrasos");
+  const alertas = calcularAtrasos();
+  if(alertas.length === 0){ el.innerHTML = ""; return; }
+  el.innerHTML = `<div class="alert-atraso">
+    <strong>Recebimento em atraso</strong>
+    <div style="margin-top:8px; display:flex; flex-direction:column; gap:4px;">
+      ${alertas.map(a=>`<span>${empresaNome(a.empresaId)} — ${monthLabel(a.mes)}: faltam ${brl(a.falta)}</span>`).join("")}
+    </div>
+  </div>`;
+}
 
 /* ---------------- DASHBOARD ---------------- */
 function renderDashboard(){
@@ -419,6 +521,9 @@ function refreshAll(){
   renderLaudosList();
   renderRecebimentosList();
   renderDashboard();
+  renderGraficoEvolucao();
+  renderRankingEmpresas();
+  renderAlertaAtrasos();
 }
 
 /* ---------------- INIT ---------------- */

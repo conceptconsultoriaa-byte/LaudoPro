@@ -4,7 +4,7 @@
 const BACKEND_URL = "https://agendapro-backend-1n92.onrender.com";
 let planoSelecionado = null;
 
-const PLANO_NOMES = { basico: "Básico — R$ 39/mês", pro: "Pro — R$ 69/mês" };
+const PLANO_NOMES = { pro: "LaudoPro Completo — R$ 97/mês" };
 
 function abrirCadastro(plano){
   planoSelecionado = plano;
