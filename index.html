@@ -55,10 +55,14 @@
     <section id="tab-empresas" class="tab-panel">
       <h1>Empresas Contratantes</h1>
       <form id="empresaForm" class="form-grid">
+        <p id="empresaFormTitle" class="hint" style="grid-column:1/-1; margin:0; display:none; font-weight:800; text-transform:uppercase; font-size:0.78rem; color:var(--lime);"></p>
         <label>Nome da empresa <input type="text" id="empNome" required></label>
         <label>WhatsApp <input type="tel" id="empTelefone" placeholder="55 11 99999-9999"></label>
         <label>Observações <input type="text" id="empObs"></label>
-        <button type="submit" class="btn-primary">Cadastrar empresa</button>
+        <div style="display:flex; gap:10px; align-items:flex-end;">
+          <button type="submit" class="btn-primary" id="empresaFormSubmitBtn">Cadastrar empresa</button>
+          <button type="button" class="btn-secondary" id="empresaFormCancelBtn" style="display:none;" onclick="cancelarEdicaoEmpresa()">Cancelar edição</button>
+        </div>
       </form>
       <div id="empresasList" class="list"></div>
     </section>

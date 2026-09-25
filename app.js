@@ -11,6 +11,7 @@ let EMPRESAS = [];
 let VALORES = [];
 let LAUDOS = [];
 let RECEBIMENTOS = [];
+let editingEmpresaId = null;
 
 function brl(v){ return "R$ " + Number(v||0).toLocaleString("pt-BR",{minimumFractionDigits:2, maximumFractionDigits:2}); }
 function formatDateBR(dateStr){ if(!dateStr) return "—"; const [y,m,d] = dateStr.split("-"); return `${d}/${m}/${y}`; }
@@ -199,15 +200,44 @@ document.getElementById("empresaForm").addEventListener("submit", async e=>{
   e.preventDefault();
   const nome = document.getElementById("empNome").value.trim();
   if(!nome){ return; }
-  const { error } = await supabaseClient.from("lp_empresas").insert({
-    business_id: BUSINESS.id, nome,
+  const payload = {
+    nome,
     telefone: document.getElementById("empTelefone").value.trim(),
     observacoes: document.getElementById("empObs").value.trim(),
-  });
+  };
+  let error;
+  if(editingEmpresaId){
+    ({ error } = await supabaseClient.from("lp_empresas").update(payload).eq("id", editingEmpresaId));
+  } else {
+    ({ error } = await supabaseClient.from("lp_empresas").insert({ business_id: BUSINESS.id, ...payload }));
+  }
   if(error){ alert("Erro: " + error.message); return; }
-  e.target.reset();
+  cancelarEdicaoEmpresa();
   await loadAll(); refreshAll();
 });
+window.editarEmpresa = (id) => {
+  const emp = EMPRESAS.find(e=>e.id===id);
+  if(!emp) return;
+  editingEmpresaId = id;
+  document.getElementById("empNome").value = emp.nome || "";
+  document.getElementById("empTelefone").value = emp.telefone || "";
+  document.getElementById("empObs").value = emp.observacoes || "";
+  const titulo = document.getElementById("empresaFormTitle");
+  titulo.textContent = "Editando: " + emp.nome;
+  titulo.style.display = "block";
+  document.getElementById("empresaFormSubmitBtn").textContent = "Salvar alterações";
+  document.getElementById("empresaFormCancelBtn").style.display = "inline-block";
+  document.getElementById("empresaForm").scrollIntoView({ behavior: "smooth", block: "start" });
+  document.getElementById("empNome").focus();
+};
+function cancelarEdicaoEmpresa(){
+  editingEmpresaId = null;
+  document.getElementById("empresaForm").reset();
+  document.getElementById("empresaFormTitle").style.display = "none";
+  document.getElementById("empresaFormSubmitBtn").textContent = "Cadastrar empresa";
+  document.getElementById("empresaFormCancelBtn").style.display = "none";
+}
+window.cancelarEdicaoEmpresa = cancelarEdicaoEmpresa;
 
 async function salvarValor(empresaId, modalidade, tipo, valor){
   if(!modalidade || !tipo || isNaN(valor)) return;
@@ -243,7 +273,10 @@ function renderEmpresasList(){
     div.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
         <span><strong>${emp.nome}</strong>${emp.telefone ? " · " + emp.telefone : ""}</span>
-        <button class="btn-danger" onclick="excluirEmpresa('${emp.id}')">Excluir</button>
+        <span style="display:flex; gap:8px;">
+          <button class="btn-secondary" onclick="editarEmpresa('${emp.id}')">Editar</button>
+          <button class="btn-danger" onclick="excluirEmpresa('${emp.id}')">Excluir</button>
+        </span>
       </div>
       <div style="margin-top:10px;">
         <span class="hint">Valores por exame × estado do paciente:</span>
